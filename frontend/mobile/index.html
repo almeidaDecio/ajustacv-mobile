@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0B0D11" />
+<title>AjustaCV — Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css?v=7" />
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- ========== HEADER ========== -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" fill="#06231F"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand__title">Ajusta<span>CV</span></div>
+        <div class="brand__subtitle">Gerencie suas candidaturas</div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Buscar vagas..." autocomplete="off" />
+      <button class="search-clear hidden" id="btnClearSearch" type="button">&times;</button>
+    </div>
+
+    <div class="stats-dropdown">
+      <button class="stats-dropdown__toggle" id="statsToggle" type="button">
+        <div class="stats-dropdown__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>
+        </div>
+        <span>Dados das candidaturas</span>
+        <svg class="stats-dropdown__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="stats-dropdown__body">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card stat-card--teal">
+            <div class="stat-card__value" id="statTotal">—</div>
+            <div>
+              <div class="stat-card__label">Total</div>
+              <div class="stat-card__value-sm">Vagas salvas</div>
+            </div>
+          </div>
+          <div class="stat-card stat-card--orange">
+            <div class="stat-card__value" id="statAplicadas">—</div>
+            <div>
+              <div class="stat-card__label">Aplicadas</div>
+              <div class="stat-card__value-sm">Este mês</div>
+            </div>
+          </div>
+          <div class="stat-card stat-card--purple">
+            <div class="stat-card__value" id="statEntrevistas">—</div>
+            <div>
+              <div class="stat-card__label">Entrevistas</div>
+              <div class="stat-card__value-sm">Agendadas</div>
+            </div>
+          </div>
+          <div class="stat-card stat-card--green">
+            <div class="stat-card__value" id="statMatch">—</div>
+            <div>
+              <div class="stat-card__label">Taxa</div>
+              <div class="stat-card__value-sm">Match médio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== BOARD ========== -->
+  <main class="board" id="board">
+    <nav class="tabs tabs--sticky" id="tabs"></nav>
+    <div class="board__cards" id="boardCards">
+      <div class="board__loading" id="boardLoading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    <div class="board-actions">
+      <button class="btn btn--filled" id="btnNovaVaga" type="button">Nova Vaga</button>
+      <button class="btn btn--outline" id="btnImportar" type="button">Importar CV</button>
+    </div>
+  </main>
+</div>
+
+<!-- ========== MODAL NOVA VAGA ========== -->
+<div class="modal-overlay hidden" id="modalNovaVaga">
+  <div class="modal">
+    <div class="modal__header">
+      <h2 class="modal__title">Nova Vaga</h2>
+      <button class="modal__close" id="btnCloseNova">&times;</button>
+    </div>
+    <div class="modal__body">
+      <label class="modal__label" for="jobCompany">Nome da empresa</label>
+      <input class="modal__input" id="jobCompany" placeholder="Ex: IFood, TOTVS..." autocomplete="off" />
+
+      <label class="modal__label" for="jobContext">Contexto da vaga</label>
+      <textarea class="modal__textarea" id="jobContext" rows="3" placeholder="Diferenciais, benefícios, cultura da empresa..."></textarea>
+
+      <label class="modal__label" for="jobRequirements">Requisitos da Vaga</label>
+      <textarea class="modal__textarea" id="jobRequirements" rows="3" placeholder="Figma, prototipagem, design systems..."></textarea>
+
+      <div class="modal__status" id="extractStatus"></div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--outline modal__btn" id="btnCancelNova" type="button">Cancelar</button>
+      <button class="btn btn--filled modal__btn" id="btnProcessar" type="button" disabled>Processar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL DETALHES ========== -->
+<div class="modal-overlay hidden" id="modalDetalhes">
+  <div class="modal modal--full">
+    <div class="modal__header">
+      <h2 class="modal__title" id="detailTitle">Vaga</h2>
+      <button class="modal__close" id="btnCloseDetail">&times;</button>
+    </div>
+    <div class="modal__body" id="detailBody">
+      <div class="board__loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL CONFIRMAR ========== -->
+<div class="modal-overlay hidden" id="modalConfirm">
+  <div class="modal modal--sm">
+    <div class="modal__header">
+      <h2 class="modal__title">Excluir vaga</h2>
+      <button class="modal__close" id="btnCloseConfirm">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="confirm-text">Tem certeza que deseja excluir esta vaga?</p>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--outline modal__btn" id="btnCancelConfirm" type="button">Cancelar</button>
+      <button class="btn btn--danger modal__btn" id="btnConfirmDelete" type="button">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

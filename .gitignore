@@ -1,0 +1,16 @@
+node_modules/
+*.db
+uploads/
+data/*.json
+data/cv_cache_*.json
+dev/
+docs/
+prompts/
+skills/
+public/
+matching_result.json
+implementation_plan.md
+implementation_plan_V2.md
+README.md
+start_mobile.ps1
+.cursorrules
