@@ -4,6 +4,13 @@
    ========================================================= */
 const API = '';
 
+function api(path, opts = {}) {
+  return fetch(`${API}${path}`, {
+    ...opts,
+    headers: { ...opts.headers, 'X-Client': 'mobile' },
+  });
+}
+
 const COLUMNS = [
   { id: 'triagem',   label: 'Triagem' },
   { id: 'aplicadas', label: 'Aplicadas' },
@@ -28,7 +35,7 @@ const btnClearSearch = $('#btnClearSearch');
 // ─── Seed on demand ───────────────────────────────────
 async function seedMobile() {
   try {
-    await fetch(`${API}/api/seed`, { method: 'POST' });
+    await api('/api/seed', { method: 'POST' });
   } catch (_) { /* servidor sem seed = ok */ }
 }
 
@@ -36,7 +43,7 @@ async function seedMobile() {
 async function loadJobs() {
   boardCards.innerHTML = '<div class="board__loading"><div class="spinner"></div></div>';
   try {
-    const r = await fetch(`${API}/api/jobs`);
+    const r = await api('/api/jobs');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     jobs = await r.json();
   } catch (e) {
@@ -173,7 +180,7 @@ function confirmDelete(id) {
 
 async function deleteJob(id) {
   try {
-    await fetch(`${API}/api/jobs/${id}`, { method: 'DELETE' });
+    await api(`/api/jobs/${id}`, { method: 'DELETE' });
   } catch {}
   pendingDeleteId = null;
   $('#modalConfirm').classList.add('hidden');
@@ -186,7 +193,7 @@ async function openDetail(id) {
   $('#modalDetalhes').classList.remove('hidden');
 
   try {
-    const r = await fetch(`${API}/api/jobs/${id}`);
+    const r = await api(`/api/jobs/${id}`);
     const job = await r.json();
     renderDetail(job);
   } catch {
@@ -314,7 +321,7 @@ async function processarVaga() {
   if (reqs) fullText += `Requisitos:\n${reqs}\n\n`;
 
   try {
-    const r = await fetch(`${API}/api/extract`, {
+    const r = await api('/api/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ job_text: fullText })

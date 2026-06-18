@@ -12,8 +12,14 @@ const app = express();
 const PORT = 3001;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
-const db = new Database(path.join(__dirname, '..', 'career_agent.db'));
+const dbDesktop = new Database(path.join(__dirname, '..', 'career_agent.db'));
+const dbMobile   = new Database(path.join(__dirname, '..', 'mobile.db'));
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
+
+app.use((req, _res, next) => {
+  req.db = req.headers['x-client'] === 'mobile' ? dbMobile : dbDesktop;
+  next();
+});
 
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -33,6 +39,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Seed on demand (mobile chama esse endpoint)
 app.post('/api/seed', (req, res) => {
+  const db = dbMobile;
   const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
   if (count.c > 0) return res.json({ seeded: false, reason: 'ja_existem_dados' });
 
@@ -71,7 +78,7 @@ app.post('/api/seed', (req, res) => {
 
 // Listar todas as vagas
 app.get('/api/jobs', (req, res) => {
-  const rows = db.prepare('SELECT * FROM vagas ORDER BY id DESC').all();
+  const rows = req.db.prepare('SELECT * FROM vagas ORDER BY id DESC').all();
   res.json(rows.map(r => ({
     ...r,
     required_skills: safeJson(r.required_skills),
@@ -84,7 +91,7 @@ app.get('/api/jobs', (req, res) => {
 
 // Pegar uma vaga por ID
 app.get('/api/jobs/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+  const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
   res.json({
     ...row,
@@ -99,7 +106,7 @@ app.get('/api/jobs/:id', (req, res) => {
 // Criar vaga
 app.post('/api/jobs', (req, res) => {
   const v = req.body;
-  const result = db.prepare(`INSERT INTO vagas
+  const result = req.db.prepare(`INSERT INTO vagas
     (job_title, company, seniority, experience_years_min, location,
      required_skills, nice_to_have_skills, responsibilities, tools, ats_keywords,
      applied_date, platform)
@@ -125,7 +132,7 @@ app.put('/api/jobs/:id', (req, res) => {
   const { status } = req.body || {};
   if (!status) return res.status(400).json({ error: 'Campo status é obrigatório' });
   try {
-    db.prepare('UPDATE vagas SET status = ? WHERE id = ?').run(status, req.params.id);
+    req.db.prepare('UPDATE vagas SET status = ? WHERE id = ?').run(status, req.params.id);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -139,11 +146,11 @@ app.post('/api/jobs/:id/details', (req, res) => {
     const platform = req.body.platform || null;
     const interview_type = req.body.interview_type || null;
     const location = req.body.location || null;
-    db.prepare('UPDATE vagas SET applied_date = ?, platform = ?, interview_type = ?, location = ? WHERE id = ?')
+    req.db.prepare('UPDATE vagas SET applied_date = ?, platform = ?, interview_type = ?, location = ? WHERE id = ?')
       .run(applied_date, platform, interview_type, location, req.params.id);
 
     // Recalcular matching
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (row) {
       const job = {
         required_skills: safeJson(row.required_skills),
@@ -153,7 +160,7 @@ app.post('/api/jobs/:id/details', (req, res) => {
       };
       const match = matcher.run(job);
       if (match.score !== null) {
-        db.prepare('UPDATE vagas SET matching_score = ? WHERE id = ?').run(match.score, req.params.id);
+        req.db.prepare('UPDATE vagas SET matching_score = ? WHERE id = ?').run(match.score, req.params.id);
       }
     }
     res.json({ success: true });
@@ -166,7 +173,7 @@ app.post('/api/jobs/:id/details', (req, res) => {
 // Recalcular matching score
 app.post('/api/jobs/:id/recalculate', (req, res) => {
   try {
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
     const job = {
       required_skills: safeJson(row.required_skills),
@@ -176,7 +183,7 @@ app.post('/api/jobs/:id/recalculate', (req, res) => {
     };
     const match = matcher.run(job);
     if (match.score !== null) {
-      db.prepare('UPDATE vagas SET matching_score = ? WHERE id = ?').run(match.score, req.params.id);
+      req.db.prepare('UPDATE vagas SET matching_score = ? WHERE id = ?').run(match.score, req.params.id);
     }
     res.json({ success: true, matching_score: match.score });
   } catch (e) {
@@ -251,7 +258,7 @@ Preencha todas as categorias com base no texto. Se uma categoria não tiver skil
 // Gerar CV otimizado para a vaga
 app.post('/api/jobs/:id/generate-cv', async (req, res) => {
   try {
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
     const job = {
       required_skills: safeJson(row.required_skills),
@@ -293,7 +300,7 @@ app.post('/api/jobs/:id/generate-cv', async (req, res) => {
 // Gerar e salvar CV como .txt em Downloads
 app.post('/api/jobs/:id/save-cv-file', async (req, res) => {
   try {
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
     const job = {
       required_skills: safeJson(row.required_skills),
@@ -357,7 +364,7 @@ app.post('/api/jobs/:id/save-cv-text', (req, res) => {
     const { cv_text } = req.body;
     if (!cv_text) return res.status(400).json({ error: 'Campo cv_text é obrigatório' });
 
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
 
     const atsKeywords = safeJson(row.ats_keywords);
@@ -393,7 +400,7 @@ Gerado por Career AI Agent em ${new Date().toLocaleDateString('pt-BR')}
 // Gerar HTML do CV otimizado para visualização/impressão (usa cache do generate-cv)
 app.post('/api/jobs/:id/export-pdf', async (req, res) => {
   try {
-    const row = db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
 
     const cachePath = path.join(__dirname, '..', 'data', `cv_cache_${req.params.id}.json`);
@@ -420,7 +427,7 @@ app.post('/api/jobs/:id/export-pdf', async (req, res) => {
 
 // Deletar vaga
 app.delete('/api/jobs/:id', (req, res) => {
-  db.prepare('DELETE FROM vagas WHERE id = ?').run(req.params.id);
+  req.db.prepare('DELETE FROM vagas WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 
@@ -471,7 +478,7 @@ app.post('/api/extract', async (req, res) => {
     const match = matcher.run(v);
     const matchingScore = match.score;
 
-    const result = db.prepare(`INSERT INTO vagas
+    const result = req.db.prepare(`INSERT INTO vagas
       (job_title, company, seniority, experience_years_min, location,
        required_skills, nice_to_have_skills, responsibilities, tools, ats_keywords,
        job_text, matching_score)
@@ -497,18 +504,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Erro interno' });
 });
 
-// Adicionar colunas se não existirem
-try { db.exec("ALTER TABLE vagas ADD COLUMN status TEXT DEFAULT 'triagem'"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN applied_date TEXT"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN platform TEXT"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN job_text TEXT"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN matching_score INTEGER"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN interview_type TEXT"); } catch {}
-try { db.exec("ALTER TABLE vagas ADD COLUMN location TEXT"); } catch {}
-
-// Tabela de anexos
-db.exec(`
-  CREATE TABLE IF NOT EXISTS attachments (
+// Migrations — roda nos dois bancos
+function migrate(db) {
+  const cols = ["status TEXT DEFAULT 'triagem'", "applied_date TEXT", "platform TEXT", "job_text TEXT", "matching_score INTEGER", "interview_type TEXT", "location TEXT"];
+  for (const col of cols) { try { db.exec(`ALTER TABLE vagas ADD COLUMN ${col}`); } catch {} }
+  db.exec(`CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_id INTEGER NOT NULL,
     filename TEXT NOT NULL,
@@ -516,13 +516,15 @@ db.exec(`
     mimetype TEXT,
     size INTEGER,
     created_at TEXT DEFAULT (datetime('now'))
-  )
-`);
+  )`);
+}
+migrate(dbDesktop);
+migrate(dbMobile);
 
 // Listar anexos de uma vaga
 app.get('/api/jobs/:id/attachments', (req, res) => {
   try {
-    const rows = db.prepare(
+    const rows = req.db.prepare(
       'SELECT id, original_name, mimetype, size, created_at FROM attachments WHERE job_id = ? ORDER BY created_at DESC'
     ).all(req.params.id);
     res.json({ success: true, attachments: rows });
@@ -535,7 +537,7 @@ app.get('/api/jobs/:id/attachments', (req, res) => {
 app.post('/api/jobs/:id/attachments', upload.single('file'), (req, res) => {
   if (!req.file) return res.json({ success: false, error: 'Nenhum arquivo enviado' });
   try {
-    db.prepare(
+    req.db.prepare(
       'INSERT INTO attachments (job_id, filename, original_name, mimetype, size) VALUES (?, ?, ?, ?, ?)'
     ).run(
       req.params.id,
@@ -560,11 +562,11 @@ app.get('/api/attachments/:filename', (req, res) => {
 // Excluir anexo
 app.delete('/api/attachments/:id', (req, res) => {
   try {
-    const row = db.prepare('SELECT filename FROM attachments WHERE id = ?').get(req.params.id);
+    const row = req.db.prepare('SELECT filename FROM attachments WHERE id = ?').get(req.params.id);
     if (!row) return res.json({ success: false, error: 'Não encontrado' });
     const filePath = path.join(uploadDir, row.filename);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);
+    req.db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (e) {
     res.json({ success: false, error: e.message });
