@@ -45,8 +45,8 @@ app.post('/api/seed', (req, res) => {
   if (count.c > 0) return res.json({ seeded: false, reason: 'ja_existem_dados' });
 
   const insert = db.prepare(`INSERT INTO vagas
-    (job_title, company, status, matching_score, platform, applied_date, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    (job_title, company, status, matching_score, platform, applied_date)
+    VALUES (?, ?, ?, ?, ?, ?)`);
 
   const jobs = [
     ['Analista de Dados Sênior',    'Ifood',      'triagem',   85, 'LinkedIn',  null],
