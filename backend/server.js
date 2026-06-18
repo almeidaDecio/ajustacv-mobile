@@ -12,8 +12,9 @@ const app = express();
 const PORT = 3001;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
-const dbDesktop = new Database(path.join(__dirname, '..', 'career_agent.db'));
-const dbMobile   = new Database(path.join(__dirname, '..', 'mobile.db'));
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
+const dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'));
+const dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'));
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
 
 app.use((req, _res, next) => {
@@ -540,8 +541,8 @@ function migrate(db) {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 }
-migrate(dbDesktop);
-migrate(dbMobile);
+try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
+try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
 
 // Listar anexos de uma vaga
 app.get('/api/jobs/:id/attachments', (req, res) => {
