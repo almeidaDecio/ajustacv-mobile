@@ -602,6 +602,16 @@ app.post('/api/jobs/upload', upload.single('file'), (req, res) => {
   res.json({ success: true, filename: req.file.filename, path: req.file.path });
 });
 
+// ── Backup automático ao iniciar ─────────────────────
+try {
+  const backupSrc = path.join(__dirname, '..', 'career_agent.db');
+  if (fs.existsSync(backupSrc)) {
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+    fs.copyFileSync(backupSrc, path.join(__dirname, '..', `backup_${ts}.db`));
+    console.log(`Backup: backup_${ts}.db`);
+  }
+} catch (_) {}
+
 // ── Startup ──────────────────────────────────────────
 const server = app.listen(PORT, () => {
   console.log(`API rodando em http://127.0.0.1:${PORT}`);
