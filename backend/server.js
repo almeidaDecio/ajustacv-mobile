@@ -506,8 +506,30 @@ app.use((err, req, res, next) => {
 
 // Migrations — roda nos dois bancos
 function migrate(db) {
-  const cols = ["status TEXT DEFAULT 'triagem'", "applied_date TEXT", "platform TEXT", "job_text TEXT", "matching_score INTEGER", "interview_type TEXT", "location TEXT"];
-  for (const col of cols) { try { db.exec(`ALTER TABLE vagas ADD COLUMN ${col}`); } catch {} }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vagas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_title TEXT,
+      company TEXT,
+      seniority TEXT,
+      experience_years_min INTEGER,
+      location TEXT,
+      required_skills TEXT,
+      nice_to_have_skills TEXT,
+      responsibilities TEXT,
+      tools TEXT,
+      ats_keywords TEXT,
+      job_description TEXT,
+      status TEXT DEFAULT 'triagem',
+      applied_date TEXT,
+      platform TEXT,
+      job_text TEXT,
+      matching_score INTEGER,
+      interview_type TEXT,
+      interview_date TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
   db.exec(`CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_id INTEGER NOT NULL,
