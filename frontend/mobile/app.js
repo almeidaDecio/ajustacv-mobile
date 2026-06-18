@@ -25,6 +25,13 @@ const tabs = $('#tabs');
 const searchInput = $('#searchInput');
 const btnClearSearch = $('#btnClearSearch');
 
+// ─── Seed on demand ───────────────────────────────────
+async function seedMobile() {
+  try {
+    await fetch(`${API}/api/seed`, { method: 'POST' });
+  } catch (_) { /* servidor sem seed = ok */ }
+}
+
 // ─── Load ─────────────────────────────────────────────
 async function loadJobs() {
   boardCards.innerHTML = '<div class="board__loading"><div class="spinner"></div></div>';
@@ -404,4 +411,4 @@ $('#modalNovaVaga').addEventListener('click', (e) => {
 });
 
 // ─── Init ──────────────────────────────────────────────
-loadJobs();
+seedMobile().then(() => loadJobs());
