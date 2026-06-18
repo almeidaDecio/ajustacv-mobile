@@ -2,7 +2,7 @@
    AjustaCV Mobile — app.js
    Conecta ao backend Express do Career AI Agent
    ========================================================= */
-const API = 'http://127.0.0.1:3001';
+const API = '';
 
 const COLUMNS = [
   { id: 'triagem',   label: 'Triagem' },
