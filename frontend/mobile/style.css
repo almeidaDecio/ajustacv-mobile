@@ -382,17 +382,21 @@ input, textarea, button, select { font-family: inherit; }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
 }
-.board::-webkit-scrollbar { display: none; }
 
 .board__cards {
-  max-height: 400px;
   overflow-y: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  padding: 0 16px calc(16px + var(--safe-bottom));
+  padding: 0 16px;
+  max-height: 400px;
+  flex-shrink: 0;
+}
+
+.board-actions {
+  margin-top: auto;
 }
 .board__cards::-webkit-scrollbar { display: none; }
 
