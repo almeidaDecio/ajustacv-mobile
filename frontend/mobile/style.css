@@ -387,16 +387,12 @@ input, textarea, button, select { font-family: inherit; }
 }
 
 .board__cards {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  padding: 0 16px;
-  max-height: 400px;
-  flex-shrink: 0;
-}
-
-.board-actions {
-  margin-top: auto;
+  padding: 0 16px 8px;
 }
 .board__cards::-webkit-scrollbar { display: none; }
 
