@@ -9,20 +9,28 @@ const multer = require('multer');
 // seed removido — desktop fica limpo; mobile chama /api/seed
 
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
-const dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'));
-const dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'));
+let dbDesktop, dbMobile;
+try {
+  dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'), { fileMustExist: false });
+  dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'), { fileMustExist: false });
+} catch (e) {
+  console.error('Database init error:', e.message);
+}
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
+if (!require('fs').existsSync(CV_PATH)) {
+  console.error('CV_PATH not found:', CV_PATH);
+}
 
 app.use((req, _res, next) => {
   req.db = req.headers['x-client'] === 'mobile' ? dbMobile : dbDesktop;
   next();
 });
 
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -41,33 +49,145 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Seed on demand (mobile chama esse endpoint)
 app.post('/api/seed', (req, res) => {
   const db = dbMobile;
+  const force = req.query.force === 'true';
   const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
-  if (count.c > 0) return res.json({ seeded: false, reason: 'ja_existem_dados' });
+  if (count.c > 0 && !force) return res.json({ seeded: false, reason: 'ja_existem_dados' });
+
+  if (force && count.c > 0) {
+    db.prepare('DELETE FROM vagas').run();
+  }
 
   const insert = db.prepare(`INSERT INTO vagas
-    (job_title, company, status, matching_score, platform, applied_date)
-    VALUES (?, ?, ?, ?, ?, ?)`);
+    (job_title, company, status, matching_score, platform, applied_date,
+     seniority, location, required_skills, nice_to_have_skills, tools, ats_keywords, responsibilities)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
   const jobs = [
-    ['Analista de Dados Sênior',    'Ifood',      'triagem',   85, 'LinkedIn',  null],
-    ['UX Designer Pleno',           'Nubank',     'triagem',   72, 'Gupy',      null],
-    ['Desenvolvedor Front-end',     'VTEX',       'triagem',   91, 'LinkedIn',  null],
-    ['Product Manager',             'QuintoAndar','aplicadas', 68, 'LinkedIn',  '2026-06-10'],
-    ['Engenheiro de Dados',         'Americanas', 'triagem',   55, 'InfoJobs',  null],
-    ['Tech Lead',                   'Stone',      'favoritas', 78, 'LinkedIn',  null],
-    ['Desenvolvedor Back-end',      'PicPay',     'triagem',   88, 'Gupy',      null],
-    ['Data Scientist',              'B3',         'aplicadas', 63, 'LinkedIn',  '2026-06-12'],
-    ['Front-end Sênior',            'iFood',      'triagem',   95, 'LinkedIn',  null],
-    ['Analista de QA',              'Loggi',      'triagem',   45, 'InfoJobs',  null],
-    ['Designer de Produto',         'Creditas',   'triagem',   81, 'Gupy',      null],
-    ['DevOps Engineer',             'Mercado Livre','favoritas',74, 'LinkedIn',  null],
-    ['Cientista de Dados Jr',       'Banco Inter','triagem',   60, 'Gupy',      null],
-    ['Arquiteto de Software',       'AWS Brasil', 'triagem',   70, 'LinkedIn',  null],
-    ['Estagiário TI',               'Accenture',  'triagem',   35, 'InfoJobs',  null],
-    ['Product Designer B2B',        'TOTVS',      'aplicadas', 70, 'LinkedIn',  '2026-06-07'],
-    ['Designer Pleno',              'More',       'aplicadas', 62, 'Própria',   '2026-06-05'],
-    ['Pessoa Product Designer Pleno','FCamara',   'aplicadas', 52, 'Gupy',      '2026-06-05'],
-  ];
+    ['Analista de Dados Sênior',    'Ifood',      'triagem',   85, 'LinkedIn',  null, 'Sênior', 'Remoto',
+     JSON.stringify(['SQL', 'Python', 'Power BI', 'Modelagem de Dados', 'Estatística']),
+     JSON.stringify(['Airflow', 'Spark', 'AWS']),
+     JSON.stringify(['SQL', 'Python', 'Tableau']),
+     JSON.stringify(['análise de dados', 'ETL', 'dashboard', 'KPIs', 'big data']),
+     JSON.stringify(['Criar dashboards executivos', 'Analisar padrões de consumo', 'Propor otimizações baseadas em dados'])],
+
+    ['UX Designer Pleno',           'Nubank',     'triagem',   72, 'Gupy',      null, 'Pleno', 'São Paulo',
+     JSON.stringify(['Figma', 'UX Research', 'Prototipação', 'Design Systems', 'Testes de Usabilidade']),
+     JSON.stringify(['Motion Design', 'HTML/CSS', 'Data Visualization']),
+     JSON.stringify(['Figma', 'Princípio', 'Notion']),
+     JSON.stringify(['UX', 'UI', 'prototipagem', 'user flow', 'acessibilidade']),
+     JSON.stringify(['Conduzir pesquisas com usuários', 'Criar protótipos de alta fidelidade', 'Colaborar com times de produto'])],
+
+    ['Desenvolvedor Front-end',     'VTEX',       'triagem',   91, 'LinkedIn',  null, 'Pleno', 'Híbrido',
+     JSON.stringify(['React', 'TypeScript', 'Next.js', 'CSS', 'GraphQL']),
+     JSON.stringify(['Node.js', 'Docker', 'Testes automatizados']),
+     JSON.stringify(['VS Code', 'Git', 'Jira']),
+     JSON.stringify(['React', 'TypeScript', 'front-end', 'componentes', 'SPA']),
+     JSON.stringify(['Desenvolver interfaces responsivas', 'Integrar APIs REST', 'Participar de code reviews'])],
+
+    ['Product Manager',             'QuintoAndar','aplicadas', 68, 'LinkedIn',  '2026-06-10', 'Pleno', 'Híbrido',
+     JSON.stringify(['Product Strategy', 'OKRs', 'Data Analysis', 'Agile', 'User Research']),
+     JSON.stringify(['SQL', 'Figma', 'Lean Inception']),
+     JSON.stringify(['Jira', 'Confluence', 'Miro']),
+     JSON.stringify(['produto', 'roadmap', 'métricas', 'backlog', 'stakeholder']),
+     JSON.stringify(['Definir roadmap do produto', 'Priorizar backlog com dados', 'Coordenar squads multidisciplinares'])],
+
+    ['Engenheiro de Dados',         'Americanas', 'triagem',   55, 'InfoJobs',  null, 'Pleno', 'Remoto',
+     JSON.stringify(['Python', 'SQL', 'Airflow', 'Spark', 'AWS']),
+     JSON.stringify(['Kafka', 'Docker', 'Kubernetes']),
+     JSON.stringify(['Airflow', 'Spark', 'Redshift']),
+     JSON.stringify(['pipelines', 'ETL', 'data lake', 'cloud', 'big data']),
+     JSON.stringify(['Construir pipelines de dados', 'Garantir qualidade dos dados', 'Otimizar consultas SQL'])],
+
+    ['Tech Lead',                   'Stone',      'favoritas', 78, 'LinkedIn',  null, 'Sênior', 'São Paulo',
+     JSON.stringify(['Liderança Técnica', 'Arquitetura de Software', 'Node.js', 'React', 'Cloud']),
+     JSON.stringify(['Microserviços', 'DDD', 'Event Storming']),
+     JSON.stringify(['AWS', 'Terraform', 'Datadog']),
+     JSON.stringify(['tech lead', 'arquitetura', 'mentoria', 'deploy', 'squad']),
+     JSON.stringify(['Liderar squads ágeis', 'Definir arquitetura', 'Fazer code reviews e mentoria'])],
+
+    ['Desenvolvedor Back-end',      'PicPay',     'triagem',   88, 'Gupy',      null, 'Pleno', 'Remoto',
+     JSON.stringify(['Node.js', 'TypeScript', 'PostgreSQL', 'Redis', 'Docker']),
+     JSON.stringify(['Kubernetes', 'Golang', 'RabbitMQ']),
+     JSON.stringify(['Docker', 'Git', 'VS Code']),
+     JSON.stringify(['back-end', 'API', 'microserviços', 'banco de dados', 'performance']),
+     JSON.stringify(['Desenvolver APIs RESTful', 'Otimizar performance de queries', 'Escrever testes unitários'])],
+
+    ['Data Scientist',              'B3',         'aplicadas', 63, 'LinkedIn',  '2026-06-12', 'Pleno', 'São Paulo',
+     JSON.stringify(['Python', 'Machine Learning', 'SQL', 'Estatística', 'Deep Learning']),
+     JSON.stringify(['NLP', 'Computer Vision', 'MLOps']),
+     JSON.stringify(['Jupyter', 'scikit-learn', 'TensorFlow']),
+     JSON.stringify(['machine learning', 'modelos preditivos', 'análise', 'features', 'validação']),
+     JSON.stringify(['Criar modelos preditivos', 'Analisar séries temporais', 'Apresentar insights para stakeholders'])],
+
+    ['Front-end Sênior',            'iFood',      'triagem',   95, 'LinkedIn',  null, 'Sênior', 'Remoto',
+     JSON.stringify(['React', 'TypeScript', 'Next.js', 'Performance Web', 'Testes']),
+     JSON.stringify(['React Native', 'GraphQL', 'Storybook']),
+     JSON.stringify(['Figma', 'Chrome DevTools', 'Sentry']),
+     JSON.stringify(['React', 'TypeScript', 'performance', 'testes', 'componentização']),
+     JSON.stringify(['Arquitetar componentes reutilizáveis', 'Otimizar Core Web Vitals', 'Mentorar devs juniores'])],
+
+    ['Analista de QA',              'Loggi',      'triagem',   45, 'InfoJobs',  null, 'Pleno', 'Híbrido',
+     JSON.stringify(['Testes Manuais', 'Testes Automatizados', 'Cypress', 'SQL', 'API Testing']),
+     JSON.stringify(['Selenium', 'JMeter', 'Jenkins']),
+     JSON.stringify(['Postman', 'Cypress', 'Jira']),
+     JSON.stringify(['QA', 'testes', 'qualidade', 'regressão', 'BDD']),
+     JSON.stringify(['Criar planos de teste', 'Automatizar testes funcionais', 'Reportar bugs com evidências'])],
+
+    ['Designer de Produto',         'Creditas',   'triagem',   81, 'Gupy',      null, 'Pleno', 'Híbrido',
+     JSON.stringify(['Figma', 'Design Systems', 'Prototipação', 'UX Research', 'User Flows']),
+     JSON.stringify(['Motion Design', 'Design Sprint', 'HTML/CSS']),
+     JSON.stringify(['Figma', 'Maze', 'Notion']),
+     JSON.stringify(['product design', 'UX', 'UI', 'prototipação', 'design system']),
+     JSON.stringify(['Criar flows e wireframes', 'Conduzir testes com usuários', 'Evoluir o design system'])],
+
+    ['DevOps Engineer',             'Mercado Livre','favoritas',74, 'LinkedIn',  null, 'Sênior', 'Remoto',
+     JSON.stringify(['AWS', 'Terraform', 'Kubernetes', 'Docker', 'CI/CD']),
+     JSON.stringify(['Prometheus', 'Grafana', 'Helm']),
+     JSON.stringify(['Terraform', 'Kubernetes', 'GitHub Actions']),
+     JSON.stringify(['infraestrutura', 'cloud', 'automação', 'monitoramento', 'segurança']),
+     JSON.stringify(['Gerenciar infraestrutura em nuvem', 'Automatizar deploys', 'Monitorar SLAs e alertas'])],
+
+    ['Cientista de Dados Jr',       'Banco Inter','triagem',   60, 'Gupy',      null, 'Júnior', 'São Paulo',
+     JSON.stringify(['Python', 'SQL', 'Machine Learning', 'Estatística', 'Pandas']),
+     JSON.stringify(['Power BI', 'Tableau', 'Excel Avançado']),
+     JSON.stringify(['Jupyter', 'Pandas', 'scikit-learn']),
+     JSON.stringify(['dados', 'análise', 'SQL', 'Python', 'modelagem']),
+     JSON.stringify(['Apoiar análise de dados', 'Criar relatórios', 'Participar de squads de dados'])],
+
+    ['Arquiteto de Software',       'AWS Brasil', 'triagem',   70, 'LinkedIn',  null, 'Sênior', 'Remoto',
+     JSON.stringify(['Arquitetura de Software', 'Microserviços', 'AWS', 'Node.js', 'DDD']),
+     JSON.stringify(['Event Sourcing', 'CQRS', 'Serverless']),
+     JSON.stringify(['AWS', 'Terraform', 'Datadog']),
+     JSON.stringify(['arquitetura', 'cloud', 'escalabilidade', 'padrões', 'segurança']),
+     JSON.stringify(['Definir arquitetura de sistemas', 'Avaliar tecnologias', 'Garantir boas práticas de segurança'])],
+
+    ['Estagiário TI',               'Accenture',  'triagem',   35, 'InfoJobs',  null, 'Estágio', 'Híbrido',
+     JSON.stringify(['Lógica de Programação', 'Pacote Office', 'Comunicação', 'Inglês Básico']),
+     JSON.stringify(['Power BI', 'SQL', 'Python']),
+     JSON.stringify(['VS Code', 'Excel']),
+     JSON.stringify(['suporte', 'TI', 'aprendizado', 'proatividade', 'organização']),
+     JSON.stringify(['Apoiar equipe de TI', 'Documentar processos', 'Participar de treinamentos'])],
+
+    ['Product Designer B2B',        'TOTVS',      'aplicadas', 70, 'LinkedIn',  '2026-06-07', 'Pleno', 'Híbrido',
+     JSON.stringify(['Figma', 'Design Systems', 'Prototipação', 'User Research', 'Product Design']),
+     JSON.stringify(['Discovery', 'HTML/CSS', 'Data Viz']),
+     JSON.stringify(['Figma', 'Miro', 'Notion']),
+     JSON.stringify(['product design', 'B2B', 'UX', 'design system', 'SaaS']),
+     JSON.stringify(['Projetar funcionalidades B2B', 'Conduzir discovery com clientes', 'Evoluir o design system da plataforma'])],
+
+    ['Designer Pleno',              'More',       'aplicadas', 62, 'Própria',   '2026-06-05', 'Pleno', 'Remoto',
+     JSON.stringify(['Figma', 'UX Design', 'UI Design', 'Prototipação', 'Design Systems']),
+     JSON.stringify(['Motion', 'Ilustração', 'After Effects']),
+     JSON.stringify(['Figma', 'Illustrator', 'Photoshop']),
+     JSON.stringify(['design', 'UX', 'UI', 'Figma', 'criatividade']),
+     JSON.stringify(['Criar interfaces para web e mobile', 'Colaborar com equipes de produto', 'Manter consistência visual'])],
+
+    ['Pessoa Product Designer Pleno','FCamara',   'aplicadas', 52, 'Gupy',      '2026-06-05', 'Pleno', 'Híbrido',
+     JSON.stringify(['Product Design', 'Figma', 'Pesquisa', 'Prototipação', 'Design System']),
+     JSON.stringify(['Service Design', 'Workshops', 'Mentoria']),
+     JSON.stringify(['Figma', 'Miro', 'Notion']),
+     JSON.stringify(['Product Design', 'UX Research', 'Figma', 'metodologias ágeis', 'cliente']),
+     JSON.stringify(['Atuar em squad de produto', 'Conduzir pesquisas com usuários', 'Criar entregáveis de design'])]);
 
   const tx = db.transaction(() => {
     for (const j of jobs) insert.run(...j);
@@ -143,12 +263,14 @@ app.put('/api/jobs/:id', (req, res) => {
 // Salvar data de aplicação e plataforma (via POST form/JSON)
 app.post('/api/jobs/:id/details', (req, res) => {
   try {
-    const applied_date = req.body.applied_date || null;
-    const platform = req.body.platform || null;
-    const interview_type = req.body.interview_type || null;
-    const location = req.body.location || null;
-    req.db.prepare('UPDATE vagas SET applied_date = ?, platform = ?, interview_type = ?, location = ? WHERE id = ?')
-      .run(applied_date, platform, interview_type, location, req.params.id);
+    const applied_date = req.body.applied_date ?? null;
+    const platform = req.body.platform ?? null;
+    const interview_type = req.body.interview_type ?? null;
+    const location = req.body.location ?? null;
+    const company = req.body.company ?? null;
+    const seniority = req.body.seniority ?? null;
+    req.db.prepare('UPDATE vagas SET applied_date=?, platform=?, interview_type=?, location=?, company=?, seniority=? WHERE id=?')
+      .run(applied_date, platform, interview_type, location, company, seniority, req.params.id);
 
     // Recalcular matching
     const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
@@ -541,8 +663,8 @@ function migrate(db) {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 }
-try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
-try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
+if (dbDesktop) try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
+if (dbMobile) try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
 
 // Listar anexos de uma vaga
 app.get('/api/jobs/:id/attachments', (req, res) => {
@@ -602,26 +724,31 @@ app.post('/api/jobs/upload', upload.single('file'), (req, res) => {
   res.json({ success: true, filename: req.file.filename, path: req.file.path });
 });
 
-// ── Backup automático ao iniciar ─────────────────────
-try {
-  const backupSrc = path.join(__dirname, '..', 'career_agent.db');
-  if (fs.existsSync(backupSrc)) {
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-    fs.copyFileSync(backupSrc, path.join(__dirname, '..', `backup_${ts}.db`));
-    console.log(`Backup: backup_${ts}.db`);
-  }
-} catch (_) {}
+// ── Backup automático ao iniciar (apenas local) ─────
+if (!process.env.VERCEL) {
+  try {
+    const backupSrc = path.join(__dirname, '..', 'career_agent.db');
+    if (fs.existsSync(backupSrc)) {
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      fs.copyFileSync(backupSrc, path.join(__dirname, '..', `backup_${ts}.db`));
+      console.log(`Backup: backup_${ts}.db`);
+    }
+  } catch (_) {}
+}
 
 // ── Startup ──────────────────────────────────────────
-const server = app.listen(PORT, () => {
-  console.log(`API rodando em http://127.0.0.1:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`API rodando em http://127.0.0.1:${PORT}`);
+  });
+  process.on('SIGTERM', () => {
+    console.log('Encerrando servidor...');
+    server.close(() => process.exit(0));
+  });
+  process.on('SIGINT', () => {
+    console.log('Encerrando servidor...');
+    server.close(() => process.exit(0));
+  });
+}
 
-process.on('SIGTERM', () => {
-  console.log('Encerrando servidor...');
-  server.close(() => process.exit(0));
-});
-process.on('SIGINT', () => {
-  console.log('Encerrando servidor...');
-  server.close(() => process.exit(0));
-});
+module.exports = app;

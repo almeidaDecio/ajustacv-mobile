@@ -56,8 +56,7 @@ input, textarea, button, select { font-family: inherit; }
    ========================================================= */
 .app {
   height: 100%;
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
   background: var(--surface-app);
   display: flex;
   flex-direction: column;
@@ -587,7 +586,6 @@ input, textarea, button, select { font-family: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   width: 100%;
-  max-width: 480px;
   max-height: 85vh;
   overflow-y: auto;
   animation: fadeIn 0.3s ease;
@@ -733,10 +731,21 @@ input, textarea, button, select { font-family: inherit; }
   color: var(--text2);
 }
 
+.detail-matches {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.detail-matches .detail-match {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .detail-match {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   padding: 16px;
   background: var(--surface-pill);
   border-radius: var(--radius-lg);
@@ -745,7 +754,6 @@ input, textarea, button, select { font-family: inherit; }
 .detail-match__value {
   font-size: 32px;
   font-weight: 800;
-  flex-shrink: 0;
 }
 .detail-match__label {
   font-size: 11px;
@@ -757,6 +765,345 @@ input, textarea, button, select { font-family: inherit; }
 .detail-match--green .detail-match__value { color: var(--green); }
 .detail-match--amber .detail-match__value { color: var(--amber); }
 .detail-match--red   .detail-match__value { color: var(--red); }
+.detail-match__value--empty { color: var(--text3) !important; font-weight: 400; font-size: 24px; }
+
+/* =========================================================
+   DETAIL PAGE (slide from right)
+   ========================================================= */
+.detail-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 200;
+  background: var(--surface-app);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+}
+.detail-page.is-open {
+  transform: translateX(0);
+}
+.detail-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.detail-page.is-open::before {
+  opacity: 1;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  flex-shrink: 0;
+  background: var(--surface-app);
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-header__back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.detail-header__back svg {
+  pointer-events: none;
+}
+.detail-header__back:active {
+  background: var(--surface-pill);
+}
+
+.detail-header__title {
+  font-size: 17px;
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-scroll {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* --- Fields grid --- */
+.job-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.field-static {
+  background: var(--surface-card);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.field-static__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+
+.field-static__label i {
+  font-size: 13px;
+}
+
+.field-static__value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+.field-static__value--empty {
+  color: var(--text3);
+  font-weight: 400;
+}
+
+/* =========================================================
+   COMPONENTES: Select Editável (Bottom Sheet) + Card Expansível
+   ========================================================= */
+
+.field-select {
+  width: 100%;
+  background: var(--surface-card);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.field-select:hover {
+  background: color-mix(in srgb, var(--surface-card) 85%, white 15%);
+}
+.field-select__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+.field-select__label i {
+  font-size: 13px;
+}
+.field-select__value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 500;
+}
+.field-select__text {
+  color: var(--text);
+}
+.field-select__text:empty::before {
+  content: attr(data-empty);
+  color: var(--text3);
+}
+.field-select__value i,
+.field-select__value svg {
+  font-size: 16px;
+  color: var(--text2);
+}
+
+/* --- Bottom sheet --- */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 300;
+}
+.sheet-overlay.is-open {
+  display: flex;
+}
+.sheet-panel {
+  background: var(--surface-card);
+  width: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--text3) 20%, transparent);
+  animation: sheet-up 0.2s ease-out;
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-panel__handle {
+  width: 36px;
+  height: 4px;
+  background: color-mix(in srgb, var(--text3) 40%, transparent);
+  border-radius: var(--radius-full);
+  margin: 0 auto 16px;
+}
+.sheet-panel__title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+.sheet-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+.sheet-option:hover,
+.sheet-option:focus-visible {
+  background: color-mix(in srgb, var(--text3) 12%, transparent);
+}
+.sheet-divider {
+  border-top: 1px solid color-mix(in srgb, var(--text3) 20%, transparent);
+  margin: 10px 0;
+}
+.sheet-custom-hint {
+  font-size: 12px;
+  color: var(--text3);
+  margin: 0 0 8px;
+}
+.sheet-custom-input {
+  width: 100%;
+  font-size: 14px;
+  background: var(--surface-app);
+  border: 1px solid color-mix(in srgb, var(--text3) 25%, transparent);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  box-sizing: border-box;
+  outline: none;
+}
+.sheet-custom-input:focus {
+  border-color: var(--brand);
+}
+.sheet-custom-confirm {
+  margin-top: 10px;
+  width: 100%;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--brand);
+  color: #06231F;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sheet-custom-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Card expansível (accordion) --- */
+.cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.card--expandable {
+  background: var(--surface-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.card__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.card__header-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  letter-spacing: 0.02em;
+}
+.card__header-label i {
+  font-size: 17px;
+}
+.card__count {
+  font-size: 13px;
+  color: var(--text3);
+  font-weight: 400;
+}
+.card__chevron {
+  font-size: 15px;
+  color: var(--text2);
+  transition: transform 0.2s ease;
+}
+.card--expandable.is-open .card__chevron {
+  transform: rotate(90deg);
+}
+.card__body {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+.card__body-inner {
+  padding: 0 14px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--text3) 20%, transparent);
+  padding-top: 12px;
+}
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill {
+  background: color-mix(in srgb, var(--green) 18%, var(--surface-card) 82%);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+.card__empty-state {
+  font-size: 13px;
+  color: var(--text3);
+  margin: 0;
+}
 
 /* =========================================================
    UTILITIES

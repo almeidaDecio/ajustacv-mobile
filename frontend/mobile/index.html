@@ -7,7 +7,7 @@
 <title>AjustaCV — Mobile</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=8" />
+<link rel="stylesheet" href="style.css?v=10" />
 </head>
 <body>
 
@@ -90,6 +90,19 @@
       <button class="btn btn--outline" id="btnImportar" type="button">Importar CV</button>
     </div>
   </main>
+
+  <!-- ========== DETAIL PAGE (slide from right) ========== -->
+  <div class="detail-page" id="detailPage">
+    <header class="detail-header">
+      <button class="detail-header__back" id="btnBackDetail" type="button" onclick="closeDetail()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 class="detail-header__title" id="detailTitle">Vaga</h2>
+    </header>
+    <div class="detail-scroll" id="detailBody">
+      <div class="board__loading"><div class="spinner"></div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ========== MODAL NOVA VAGA ========== -->
@@ -118,16 +131,84 @@
   </div>
 </div>
 
-<!-- ========== MODAL DETALHES ========== -->
-<div class="modal-overlay hidden" id="modalDetalhes">
-  <div class="modal modal--full">
-    <div class="modal__header">
-      <h2 class="modal__title" id="detailTitle">Vaga</h2>
-      <button class="modal__close" id="btnCloseDetail">&times;</button>
+<!-- ========== BOTTOM SHEET: Tipo de Entrevista ========== -->
+<div class="sheet-overlay" id="sheet-tipo-entrevista">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Tipo de entrevista</p>
+    <div class="sheet-options"></div>
+    <div class="sheet-divider"></div>
+    <p class="sheet-custom-hint">Não encontrou? Digite o seu:</p>
+    <input type="text" class="sheet-custom-input" placeholder="Ex: Painel com 3 entrevistadores" />
+    <button type="button" class="sheet-custom-confirm" disabled>Usar este valor</button>
+  </div>
+</div>
+
+<!-- ========== BOTTOM SHEET: Data ========== -->
+<div class="sheet-overlay" id="sheet-data">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Data de aplicação</p>
+    <div class="sheet-options" id="sheetDataOptions">
+      <button type="button" class="sheet-option" data-value="hoje">Hoje</button>
+      <button type="button" class="sheet-option" data-value="ontem">Ontem</button>
+      <button type="button" class="sheet-option" data-value="custom">Personalizado...</button>
     </div>
-    <div class="modal__body" id="detailBody">
-      <div class="board__loading"><div class="spinner"></div></div>
-    </div>
+    <div class="sheet-divider"></div>
+    <input type="date" class="sheet-custom-input" id="sheetDataInput" style="display:none" />
+    <button type="button" class="sheet-custom-confirm" id="sheetDataConfirm" style="display:none" disabled>Usar esta data</button>
+  </div>
+</div>
+
+<!-- ========== BOTTOM SHEET: Empresa ========== -->
+<div class="sheet-overlay" id="sheet-empresa">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Empresa</p>
+    <div class="sheet-options"></div>
+    <div class="sheet-divider"></div>
+    <p class="sheet-custom-hint">Não encontrou? Digite o nome:</p>
+    <input type="text" class="sheet-custom-input" placeholder="Ex: Nubank, iFood..." />
+    <button type="button" class="sheet-custom-confirm" disabled>Usar este valor</button>
+  </div>
+</div>
+
+<!-- ========== BOTTOM SHEET: Senioridade ========== -->
+<div class="sheet-overlay" id="sheet-senioridade">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Senioridade</p>
+    <div class="sheet-options"></div>
+    <div class="sheet-divider"></div>
+    <p class="sheet-custom-hint">Não encontrou? Digite o seu:</p>
+    <input type="text" class="sheet-custom-input" placeholder="Ex: Trainee, Lead..." />
+    <button type="button" class="sheet-custom-confirm" disabled>Usar este valor</button>
+  </div>
+</div>
+
+<!-- ========== BOTTOM SHEET: Local ========== -->
+<div class="sheet-overlay" id="sheet-local">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Local</p>
+    <div class="sheet-options"></div>
+    <div class="sheet-divider"></div>
+    <p class="sheet-custom-hint">Não encontrou? Digite o seu:</p>
+    <input type="text" class="sheet-custom-input" placeholder="Ex: São Paulo, Remoto..." />
+    <button type="button" class="sheet-custom-confirm" disabled>Usar este valor</button>
+  </div>
+</div>
+
+<!-- ========== BOTTOM SHEET: Plataforma ========== -->
+<div class="sheet-overlay" id="sheet-plataforma">
+  <div class="sheet-panel">
+    <div class="sheet-panel__handle"></div>
+    <p class="sheet-panel__title">Plataforma</p>
+    <div class="sheet-options"></div>
+    <div class="sheet-divider"></div>
+    <p class="sheet-custom-hint">Não encontrou? Digite o seu:</p>
+    <input type="text" class="sheet-custom-input" placeholder="Ex: GeekHunter, Programathor..." />
+    <button type="button" class="sheet-custom-confirm" disabled>Usar este valor</button>
   </div>
 </div>
 
