@@ -25,8 +25,11 @@ if (!require('fs').existsSync(CV_PATH)) {
   console.error('CV_PATH not found:', CV_PATH);
 }
 
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   req.db = req.headers['x-client'] === 'mobile' ? dbMobile : dbDesktop;
+  if (!req.db) {
+    return res.status(500).json({ error: 'Database not available' });
+  }
   next();
 });
 
@@ -42,6 +45,11 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Health check — before any middleware that might fail
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, env: process.env.VERCEL ? 'vercel' : 'local', node: process.version });
+});
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use('/mobile', express.static(path.join(__dirname, '..', 'frontend', 'mobile')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
