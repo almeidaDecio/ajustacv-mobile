@@ -189,7 +189,7 @@ function seedDatabase(db) {
 // Seed on demand (mobile chama esse endpoint)
 app.post('/api/seed', (req, res) => {
   const db = dbMobile;
-  const force = req.query.force === 'true';
+  const force = req.query.force === 'true' || req.body?.force === true;
   const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
   if (count.c > 0 && !force) return res.json({ seeded: false, reason: 'ja_existem_dados' });
 
@@ -654,7 +654,7 @@ function migrate(db) {
       matching_score INTEGER,
       interview_type TEXT,
       interview_date TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT
     )
   `);
   db.exec(`CREATE TABLE IF NOT EXISTS attachments (
