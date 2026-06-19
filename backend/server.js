@@ -46,17 +46,7 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use('/mobile', express.static(path.join(__dirname, '..', 'frontend', 'mobile')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Seed on demand (mobile chama esse endpoint)
-app.post('/api/seed', (req, res) => {
-  const db = dbMobile;
-  const force = req.query.force === 'true';
-  const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
-  if (count.c > 0 && !force) return res.json({ seeded: false, reason: 'ja_existem_dados' });
-
-  if (force && count.c > 0) {
-    db.prepare('DELETE FROM vagas').run();
-  }
-
+function seedDatabase(db) {
   const insert = db.prepare(`INSERT INTO vagas
     (job_title, company, status, matching_score, platform, applied_date,
      seniority, location, required_skills, nice_to_have_skills, tools, ats_keywords, responsibilities)
@@ -193,8 +183,22 @@ app.post('/api/seed', (req, res) => {
     for (const j of jobs) insert.run(...j);
   });
   tx();
+  return jobs.length;
+}
 
-  res.json({ seeded: true, count: jobs.length });
+// Seed on demand (mobile chama esse endpoint)
+app.post('/api/seed', (req, res) => {
+  const db = dbMobile;
+  const force = req.query.force === 'true';
+  const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
+  if (count.c > 0 && !force) return res.json({ seeded: false, reason: 'ja_existem_dados' });
+
+  if (force && count.c > 0) {
+    db.prepare('DELETE FROM vagas').run();
+  }
+
+  const seeded = seedDatabase(db);
+  res.json({ seeded: true, count: seeded });
 });
 
 // Listar todas as vagas
@@ -665,6 +669,17 @@ function migrate(db) {
 }
 if (dbDesktop) try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
 if (dbMobile) try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
+
+// Auto-seed on startup if database is empty (Vercel cold start)
+if (dbMobile) {
+  try {
+    const count = dbMobile.prepare('SELECT COUNT(*) as c FROM vagas').get();
+    if (count.c === 0) {
+      seedDatabase(dbMobile);
+      console.log('Auto-seed: mobile.db seeded');
+    }
+  } catch (e) { console.error('auto-seed:', e.message); }
+}
 
 // Listar anexos de uma vaga
 app.get('/api/jobs/:id/attachments', (req, res) => {
