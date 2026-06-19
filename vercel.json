@@ -1,4 +1,18 @@
 {
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "backend/**",
+          "frontend/**",
+          "sample_cv.json",
+          "sample_job.json"
+        ]
+      }
+    }
+  ],
   "routes": [
     { "src": "/mobile/(.*)", "dest": "/backend/server.js" },
     { "src": "/api/(.*)", "dest": "/backend/server.js" },

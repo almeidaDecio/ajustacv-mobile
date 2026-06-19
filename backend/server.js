@@ -672,7 +672,7 @@ function migrate(db) {
     original_name TEXT NOT NULL,
     mimetype TEXT,
     size INTEGER,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT
   )`);
 }
 if (dbDesktop) try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
