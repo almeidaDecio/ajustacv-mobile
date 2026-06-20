@@ -222,237 +222,149 @@ function renderDetail(job) {
 
   $('#detailTitle').textContent = job.job_title || 'Vaga';
 
-  $('#detailBody').innerHTML = `
-    <div class="detail-matches">
-      <div class="detail-match ${scoreClass(score)}">
-        <div class="detail-match__label">Match CV Base</div>
-        <div class="detail-match__value ${score === null ? 'detail-match__value--empty' : ''}">${score !== null ? score + '%' : '—'}</div>
+  function mc(score) {
+    if (score == null) return '<span class="match-card__value--empty">—</span>';
+    return `<span class="match-card__value">${score}%</span>`;
+  }
+
+  function fieldIcon(name) {
+    const icons = {
+      empresa: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+      senioridade: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+      local: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+      plataforma: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-17.88 5.85m19.5 5.17c-6.2-1.28-10.47-1.97-17.73-1.97"/></svg>',
+      data: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      tipo_entrevista: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+    };
+    return icons[name] || '';
+  }
+
+  function fieldSelect(field, label, value) {
+    return `<button class="field-select" data-field="${field}" type="button">
+      <span class="field-select__label">${fieldIcon(field)} ${label}</span>
+      <span class="field-select__value">
+        <span class="field-select__text" data-empty="— Selecione —">${escHtml(value)}</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </button>`;
+  }
+
+  function expCard(icon, label, count, body) {
+    return `<div class="card card--expandable" data-card="${label.toLowerCase().replace(/\s+/g, '-')}">
+      <button class="card__header" type="button">
+        <span class="card__header-label">
+          ${icon}
+          ${label}
+          <span class="card__count">${count}</span>
+        </span>
+        <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="card__body">
+        <div class="card__body-inner">${body}</div>
       </div>
-      <div class="detail-match ${scoreClass(scoreAdj)}">
-        <div class="detail-match__label">Match CV Ajustado</div>
-        <div class="detail-match__value ${scoreAdj === null ? 'detail-match__value--empty' : ''}">${scoreAdj !== null ? scoreAdj + '%' : '—'}</div>
+    </div>`;
+  }
+
+  const icons = {
+    skills: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    diferenciais: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    ferramentas: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+    responsabilidades: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>',
+    ats: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-17.88 5.85m19.5 5.17c-6.2-1.28-10.47-1.97-17.73-1.97"/></svg>',
+    'texto-vaga': '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'
+  };
+
+  const appliedDateFormatted = formatDate(applied);
+
+  $('#detailBody').innerHTML = `
+    <div class="job-header">
+      <div>
+        <div class="job-header__company">${escHtml(empresa)}</div>
+        <div class="job-header__role">${escHtml(job.job_title || 'Vaga')}</div>
       </div>
     </div>
 
-    <div class="job-fields-grid">
-      <button class="field-select" data-field="empresa" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Empresa</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${escHtml(empresa)}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
+    <div class="actions-row">
+      <button class="btn-action btn-action--primary" data-action="export-pdf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Exportar PDF</span>
       </button>
-      <button class="field-select" data-field="senioridade" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Senioridade</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${escHtml(senioridade)}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
+      <button class="btn-action btn-action--secondary" data-action="revisar-cv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"/></svg>
+        <span>Revisar CV</span>
       </button>
-      <button class="field-select" data-field="local" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Local</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${escHtml(location)}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
-      </button>
-      <button class="field-select" data-field="plataforma" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-17.88 5.85m19.5 5.17c-6.2-1.28-10.47-1.97-17.73-1.97"/></svg> Plataforma</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${escHtml(platform)}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
-      </button>
-      <button class="field-select" data-field="data" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Data</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${formatDate(applied) || ''}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
-      </button>
-      <button class="field-select" data-field="tipo_entrevista" type="button">
-        <span class="field-select__label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Tipo de Entrevista</span>
-        <span class="field-select__value">
-          <span class="field-select__text" data-empty="— Selecione —">${escHtml(interviewType)}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
+      <button class="btn-action btn-action--outline" data-action="gerar-cv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
+        <span>Gerar Novo CV</span>
       </button>
     </div>
+
+    <div class="match-row">
+      <div class="match-card">
+        <div class="match-card__label">MATCH CV BASE</div>
+        ${mc(score)}
+      </div>
+      <div class="match-card">
+        <div class="match-card__label">MATCH CV AJUSTADO</div>
+        ${mc(scoreAdj)}
+      </div>
+    </div>
+
+    <div class="fields-grid">
+      ${fieldSelect('empresa', 'Empresa', empresa)}
+      ${fieldSelect('senioridade', 'Senioridade', senioridade)}
+    </div>
+    <div class="fields-grid">
+      ${fieldSelect('data', 'Data de Aplicação', appliedDateFormatted)}
+      ${fieldSelect('local', 'Local', location)}
+    </div>
+    <div class="fields-grid">
+      ${fieldSelect('plataforma', 'Plataforma', platform)}
+      ${fieldSelect('tipo_entrevista', 'Tipo de Entrevista', interviewType)}
+    </div>
+
+    <div class="divider"></div>
 
     <div class="cards-stack">
-      <div class="card card--expandable" data-card="skills">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            SKILLS REQUERIDAS
-            <span class="card__count">${skills.length}</span>
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${skills.length ? '<div class="pill-list">' + skills.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma skill adicionada ainda.</p>'}
-          </div>
-        </div>
-      </div>
+      ${expCard(icons.skills, 'SKILLS REQUERIDAS', skills.length,
+        skills.length ? '<div class="pill-list">' + skills.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma skill adicionada ainda.</p>')}
+      ${expCard(icons.diferenciais, 'DIFERENCIAIS', nice.length,
+        nice.length ? '<div class="pill-list">' + nice.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhum diferencial adicionado ainda.</p>')}
+      ${expCard(icons.ferramentas, 'FERRAMENTAS EXIGIDAS', tools.length,
+        tools.length ? '<div class="pill-list">' + tools.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma ferramenta adicionada ainda.</p>')}
+      ${expCard(icons.responsabilidades, 'RESPONSABILIDADES', resp.length,
+        resp.length ? '<div class="detail-text">' + resp.map(r => '• ' + escHtml(r)).join('<br>') + '</div>' : '<p class="card__empty-state">Nenhuma responsabilidade listada.</p>')}
+      ${expCard(icons.ats, 'ATS KEYWORDS', ats.length,
+        ats.length ? '<div class="detail-tags">' + ats.map(s => `<span class="detail-tag detail-tag--purple">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma keyword ATS encontrada.</p>')}
+      ${expCard(icons['texto-vaga'], 'TEXTO DA VAGA', '',
+        jobDescription ? '<p class="detail-text">' + escHtml(jobDescription).replace(/\n/g, '<br>') + '</p>' : '<p class="card__empty-state">Texto da vaga não disponível.</p>')}
+    </div>
 
-      <div class="card card--expandable" data-card="diferenciais">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            DIFERENCIAIS
-            <span class="card__count">${nice.length}</span>
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${nice.length ? '<div class="pill-list">' + nice.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhum diferencial adicionado ainda.</p>'}
-          </div>
-        </div>
-      </div>
+    <div class="divider"></div>
 
-      <div class="card card--expandable" data-card="ferramentas">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            FERRAMENTAS EXIGIDAS
-            <span class="card__count">${tools.length}</span>
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${tools.length ? '<div class="pill-list">' + tools.map(s => `<span class="pill">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma ferramenta adicionada ainda.</p>'}
-          </div>
-        </div>
-      </div>
-
-      <div class="card card--expandable" data-card="responsabilidades">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
-            RESPONSABILIDADES
-            <span class="card__count">${resp.length}</span>
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${resp.length ? `<div class="detail-text">${resp.map(r => '• ' + escHtml(r)).join('<br>')}</div>` : '<p class="card__empty-state">Nenhuma responsabilidade listada.</p>'}
-          </div>
-        </div>
-      </div>
-
-      <div class="card card--expandable" data-card="ats">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-17.88 5.85m19.5 5.17c-6.2-1.28-10.47-1.97-17.73-1.97"/></svg>
-            ATS KEYWORDS
-            <span class="card__count">${ats.length}</span>
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${ats.length ? '<div class="detail-tags">' + ats.map(s => `<span class="detail-tag detail-tag--purple">${escHtml(s)}</span>`).join('') + '</div>' : '<p class="card__empty-state">Nenhuma keyword ATS encontrada.</p>'}
-          </div>
-        </div>
-      </div>
-
-      <div class="card card--expandable" data-card="texto-vaga">
-        <button class="card__header" type="button">
-          <span class="card__header-label">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            TEXTO DA VAGA
-          </span>
-          <svg class="card__chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="card__body">
-          <div class="card__body-inner">
-            ${jobDescription ? '<p class="detail-text">' + escHtml(jobDescription).replace(/\n/g, '<br>') + '</p>' : '<p class="card__empty-state">Texto da vaga não disponível.</p>'}
-          </div>
-        </div>
-      </div>
+    <div class="footer-actions">
+      <button class="btn-full btn-full--primary" data-action="export-pdf">Exportar PDF</button>
+      <button class="btn-full btn-full--outline" data-action="revisar-cv">Revisar CV</button>
     </div>
   `;
 
   initExpandableCards();
-  initEditableSelect({
-    fieldSelector: '[data-field="empresa"]',
-    sheetId: 'sheet-empresa',
-    options: [],
-    currentValue: empresa || null,
-    onChange: (valor) => {
-      if (currentJobId) {
-        api(`/api/jobs/${currentJobId}/details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ company: valor })
-        }).catch(() => {});
-      }
-    },
-  });
-  initEditableSelect({
-    fieldSelector: '[data-field="senioridade"]',
-    sheetId: 'sheet-senioridade',
-    options: ['Estágio', 'Júnior', 'Pleno', 'Sênior', 'Especialista', 'Lead', 'Coordenador', 'Gerente', 'Diretor'],
-    currentValue: senioridade || null,
-    onChange: (valor) => {
-      if (currentJobId) {
-        api(`/api/jobs/${currentJobId}/details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seniority: valor })
-        }).catch(() => {});
-      }
-    },
-  });
-  initEditableSelect({
-    fieldSelector: '[data-field="local"]',
-    sheetId: 'sheet-local',
-    options: ['Remoto', 'Presencial', 'Híbrido', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte'],
-    currentValue: location || null,
-    onChange: (valor) => {
-      if (currentJobId) {
-        api(`/api/jobs/${currentJobId}/details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ location: valor })
-        }).catch(() => {});
-      }
-    },
-  });
-  initEditableSelect({
-    fieldSelector: '[data-field="plataforma"]',
-    sheetId: 'sheet-plataforma',
-    options: ['LinkedIn', 'Gupy', 'InfoJobs', 'Própria', 'Indeed', 'GeekHunter', 'Programathor', 'Catho'],
-    currentValue: platform || null,
-    onChange: (valor) => {
-      if (currentJobId) {
-        api(`/api/jobs/${currentJobId}/details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ platform: valor })
-        }).catch(() => {});
-      }
-    },
-  });
-  initEditableSelect({
-    fieldSelector: '[data-field="tipo_entrevista"]',
-    sheetId: 'sheet-tipo-entrevista',
-    options: ['Presencial', 'Remoto (vídeo)', 'Telefone', 'Técnica (live coding/case)'],
-    currentValue: interviewType || null,
-    onChange: (valor) => {
-      if (currentJobId) {
-        api(`/api/jobs/${currentJobId}/details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ interview_type: valor })
-        }).catch(() => {});
-      }
-    },
-  });
+
+  function detailApi(val) {
+    if (currentJobId) {
+      api(`/api/jobs/${currentJobId}/details`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(val)
+      }).catch(() => {});
+    }
+  }
+
+  initEditableSelect({ fieldSelector: '[data-field="empresa"]', sheetId: 'sheet-empresa', options: [], currentValue: empresa || null, onChange: (valor) => detailApi({ company: valor }) });
+  initEditableSelect({ fieldSelector: '[data-field="senioridade"]', sheetId: 'sheet-senioridade', options: ['Estágio', 'Júnior', 'Pleno', 'Sênior', 'Especialista', 'Lead', 'Coordenador', 'Gerente', 'Diretor'], currentValue: senioridade || null, onChange: (valor) => detailApi({ seniority: valor }) });
+  initEditableSelect({ fieldSelector: '[data-field="local"]', sheetId: 'sheet-local', options: ['Remoto', 'Presencial', 'Híbrido', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte'], currentValue: location || null, onChange: (valor) => detailApi({ location: valor }) });
+  initEditableSelect({ fieldSelector: '[data-field="plataforma"]', sheetId: 'sheet-plataforma', options: ['LinkedIn', 'Gupy', 'InfoJobs', 'Própria', 'Indeed', 'GeekHunter', 'Programathor', 'Catho'], currentValue: platform || null, onChange: (valor) => detailApi({ platform: valor }) });
+  initEditableSelect({ fieldSelector: '[data-field="tipo_entrevista"]', sheetId: 'sheet-tipo-entrevista', options: ['Presencial', 'Remoto (vídeo)', 'Telefone', 'Técnica (live coding/case)'], currentValue: interviewType || null, onChange: (valor) => detailApi({ interview_type: valor }) });
   initDateSelect({
     fieldSelector: '[data-field="data"]',
     sheetId: 'sheet-data',
