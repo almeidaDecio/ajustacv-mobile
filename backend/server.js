@@ -31,8 +31,8 @@ app.use((req, res, next) => {
   next();
 });
 
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = path.join(DATA_DIR, 'uploads');
+try { if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true }); } catch (e) { console.error('mkdir uploads:', e.message); }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
@@ -327,7 +327,7 @@ app.post('/api/jobs/:id/generate-cv', async (req, res) => {
     }
 
     // Cache the Ollama-enhanced CV result
-    const dataDir = path.join(__dirname, '..', 'data');
+    const dataDir = path.join(DATA_DIR, 'data');
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
     fs.writeFileSync(path.join(dataDir, `cv_cache_${req.params.id}.json`), JSON.stringify(cv, null, 2), 'utf8');
 
@@ -455,7 +455,7 @@ app.post('/api/jobs/:id/export-pdf', async (req, res) => {
     const row = req.db.prepare('SELECT * FROM vagas WHERE id = ?').get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Vaga não encontrada' });
 
-    const cachePath = path.join(__dirname, '..', 'data', `cv_cache_${req.params.id}.json`);
+    const cachePath = path.join(DATA_DIR, 'data', `cv_cache_${req.params.id}.json`);
     if (!fs.existsSync(cachePath)) {
       return res.status(400).json({ error: 'Gere o CV otimizado primeiro (botão "Gerar CV Otimizado")' });
     }
