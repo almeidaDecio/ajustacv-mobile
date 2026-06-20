@@ -20,6 +20,7 @@ try {
 } catch (e) {
   console.error('Database init error:', e.message);
 }
+
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -690,10 +691,11 @@ if (!process.env.VERCEL) {
   });
 }
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: err.message || 'Internal error' });
-});
-
-module.exports = app;
+if (typeof app !== "undefined") {
+  module.exports = app;
+} else {
+  const fallbackExpress = require("express");
+  const fallbackApp = fallbackExpress();
+  fallbackApp.get("/api/health", (req, res) => res.json({ ok: true, error: "app_undefined" }));
+  module.exports = fallbackApp;
+}

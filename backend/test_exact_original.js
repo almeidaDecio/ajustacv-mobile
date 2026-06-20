@@ -13,13 +13,8 @@ const PORT = 3002;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
-let dbDesktop, dbMobile;
-try {
-  dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'), { fileMustExist: false });
-  dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'), { fileMustExist: false });
-} catch (e) {
-  console.error('Database init error:', e.message);
-}
+const dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'));
+const dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'));
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -689,11 +684,5 @@ if (!process.env.VERCEL) {
     server.close(() => process.exit(0));
   });
 }
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: err.message || 'Internal error' });
-});
 
 module.exports = app;

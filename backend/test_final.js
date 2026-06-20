@@ -690,10 +690,10 @@ if (!process.env.VERCEL) {
   });
 }
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: err.message || 'Internal error' });
-});
 
+// Global error handler for Express v5
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message, err.stack);
+  res.status(500).json({ error: err.message || 'Internal error', stack: err.stack });
+});
 module.exports = app;

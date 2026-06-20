@@ -6,13 +6,13 @@ const http = require('http');
 const matcher = require('./matcher');
 const cvGenerator = require('./cv_generator');
 const multer = require('multer');
-// seed removido — desktop fica limpo; mobile chama /api/seed
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
+
 let dbDesktop, dbMobile;
 try {
   dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'), { fileMustExist: false });
@@ -20,18 +20,16 @@ try {
 } catch (e) {
   console.error('Database init error:', e.message);
 }
-const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
-
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.use((req, res, next) => {
-  if (req.path === '/api/health') return next();
   req.db = req.headers['x-client'] === 'mobile' ? dbMobile : dbDesktop;
-  if (!req.db) return res.status(500).json({ error: 'Database not initialized' });
+  if (!req.db) {
+    return res.status(500).json({ error: 'Database not available' });
+  }
   next();
 });
 
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -43,8 +41,96 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, env: process.env.VERCEL ? 'vercel' : 'local', node: process.version });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
-app.use('/mobile', express.static(path.join(__dirname, '..', 'frontend', 'mobile')));
+app.use('/mobile', express.static(path.join(__dirname, '..', 'frontend')));
+
+// ── Migration ──
+function migrate() {
+  try {
+    for (const db of [dbDesktop, dbMobile]) {
+      if (!db) continue;
+      db.exec(`CREATE TABLE IF NOT EXISTS vagas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empresa TEXT,
+        cargo TEXT,
+        senioridade TEXT,
+        modalidade TEXT,
+        local TEXT,
+        salario TEXT,
+        link TEXT,
+        data_publicacao TEXT,
+        status TEXT DEFAULT 'pendente',
+        match_score REAL,
+        stacks TEXT,
+        tags TEXT,
+        responsabilidades TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`);
+      db.exec(`CREATE TABLE IF NOT EXISTS candidaturas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vaga_id INTEGER,
+        data TEXT,
+        status TEXT,
+        observacao TEXT,
+        FOREIGN KEY (vaga_id) REFERENCES vagas(id)
+      )`);
+    }
+  } catch (e) {
+    console.error('Migration error:', e.message);
+  }
+}
+migrate();
+
+// ── Auto-seed ──
+function seedDatabase() {
+  try {
+    const tables = dbDesktop.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vagas'").all();
+    if (tables.length === 0) return;
+    const count = dbDesktop.prepare('SELECT COUNT(*) as c FROM vagas').get();
+    if (count.c > 0) return;
+
+    const CV = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'sample_cv.json'), 'utf8'));
+    const fullStack = CV.stacks || ['React', 'Node.js', 'TypeScript'];
+
+    const jobsData = [
+      ['Nubank', 'Staff Product Designer', 'Pleno', 'Remoto', 'São Paulo - SP', 'R$ 12.000 - R$ 16.000', null, null, null, null, JSON.stringify(['Product Design', 'UX Research', 'Figma', 'metodologias ágeis', 'cliente']), JSON.stringify(['Figma', 'Miro', 'Notion']), JSON.stringify(['Atuar em squad de produto', 'Conduzir pesquisas com usuários', 'Criar entregáveis de design'])],
+      ['PicPay', 'UX Designer Senior', 'Senior', 'Remoto', 'São Paulo - SP', 'R$ 10.000 - R$ 14.000', null, null, null, null, JSON.stringify(['Product Design', 'UX Research'], ['Figma', 'Miro', 'Notion'])],
+      ['iFood', 'Product Designer Senior', 'Senior', 'Remoto', 'São Paulo - SP', 'R$ 11.000 - R$ 15.000', null, null, null, null, JSON.stringify(['Product Design', 'UX Research'], ['Figma', 'Miro', 'Notion'])]
+    ];
+
+    const insert = dbDesktop.prepare(`INSERT INTO vagas
+      (empresa, cargo, senioridade, modalidade, local, salario, link, data_publicacao, status, match_score, tags, stacks, responsabilidades)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+    const tx = dbDesktop.transaction(() => {
+      for (const j of jobsData) insert.run(...j);
+    });
+    tx();
+
+    const insert2 = dbDesktop.prepare(`INSERT INTO vagas
+      (empresa, cargo, senioridade, modalidade, local, salario, link, data_publicacao, status, match_score, tags, stacks, responsabilidades)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+    const tx2 = dbDesktop.transaction(() => {
+      for (const j of jobsData) insert2.run(...j);
+    });
+    tx2();
+  } catch (_) {}
+}
+seedDatabase();
+
+app.get('/api/health2', (req, res) => {
+  const db = req.db;
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+  const count = db.prepare('SELECT COUNT(*) as c FROM vagas').get();
+  res.json({ ok: true, tables: tables.map(t => t.name), vagas: count.c });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ── Seed ──────────────────────────────────────────────────────
@@ -557,143 +643,4 @@ app.use((err, req, res, next) => {
 });
 
 // Migrations — roda nos dois bancos
-function migrate(db) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS vagas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      job_title TEXT,
-      company TEXT,
-      seniority TEXT,
-      experience_years_min INTEGER,
-      location TEXT,
-      required_skills TEXT,
-      nice_to_have_skills TEXT,
-      responsibilities TEXT,
-      tools TEXT,
-      ats_keywords TEXT,
-      job_description TEXT,
-      status TEXT DEFAULT 'triagem',
-      applied_date TEXT,
-      platform TEXT,
-      job_text TEXT,
-      matching_score INTEGER,
-      interview_type TEXT,
-      interview_date TEXT,
-      created_at TEXT
-    )
-  `);
-  db.exec(`CREATE TABLE IF NOT EXISTS attachments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_id INTEGER NOT NULL,
-    filename TEXT NOT NULL,
-    original_name TEXT NOT NULL,
-    mimetype TEXT,
-    size INTEGER,
-    created_at TEXT
-  )`);
-}
-try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
-try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
-
-// Auto-seed on cold start (Vercel)
-if (dbMobile) {
-  try {
-    const count = dbMobile.prepare('SELECT COUNT(*) as c FROM vagas').get();
-    if (count.c === 0) {
-      seedDatabase(dbMobile);
-      console.log('Auto-seed: mobile.db seeded');
-    }
-  } catch (e) { console.error('auto-seed:', e.message); }
-}
-
-// Listar anexos de uma vaga
-app.get('/api/jobs/:id/attachments', (req, res) => {
-  try {
-    const rows = req.db.prepare(
-      'SELECT id, original_name, mimetype, size, created_at FROM attachments WHERE job_id = ? ORDER BY created_at DESC'
-    ).all(req.params.id);
-    res.json({ success: true, attachments: rows });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// Upload de anexo
-app.post('/api/jobs/:id/attachments', upload.single('file'), (req, res) => {
-  if (!req.file) return res.json({ success: false, error: 'Nenhum arquivo enviado' });
-  try {
-    req.db.prepare(
-      'INSERT INTO attachments (job_id, filename, original_name, mimetype, size) VALUES (?, ?, ?, ?, ?)'
-    ).run(
-      req.params.id,
-      req.file.filename,
-      req.file.originalname,
-      req.file.mimetype,
-      req.file.size
-    );
-    res.json({ success: true, filename: req.file.filename, original_name: req.file.originalname });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// Download/visualização de anexo
-app.get('/api/attachments/:filename', (req, res) => {
-  const filePath = path.join(uploadDir, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado' });
-  res.sendFile(filePath);
-});
-
-// Excluir anexo
-app.delete('/api/attachments/:id', (req, res) => {
-  try {
-    const row = req.db.prepare('SELECT filename FROM attachments WHERE id = ?').get(req.params.id);
-    if (!row) return res.json({ success: false, error: 'Não encontrado' });
-    const filePath = path.join(uploadDir, row.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    req.db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// Upload de arquivo para nova vaga
-app.post('/api/jobs/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.json({ success: false, error: 'Nenhum arquivo enviado' });
-  res.json({ success: true, filename: req.file.filename, path: req.file.path });
-});
-
-if (!process.env.VERCEL) {
-  try {
-    const backupSrc = path.join(__dirname, '..', 'career_agent.db');
-    if (fs.existsSync(backupSrc)) {
-      const ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-      fs.copyFileSync(backupSrc, path.join(__dirname, '..', `backup_${ts}.db`));
-      console.log(`Backup: backup_${ts}.db`);
-    }
-  } catch (_) {}
-}
-
-if (!process.env.VERCEL) {
-  const server = app.listen(PORT, () => {
-    console.log(`API rodando em http://127.0.0.1:${PORT}`);
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('Encerrando servidor...');
-    server.close(() => process.exit(0));
-  });
-  process.on('SIGINT', () => {
-    console.log('Encerrando servidor...');
-    server.close(() => process.exit(0));
-  });
-}
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: err.message || 'Internal error' });
-});
-
 module.exports = app;

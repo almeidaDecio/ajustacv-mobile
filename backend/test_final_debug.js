@@ -1,10 +1,17 @@
+try {
+const __log = msg => require('fs').appendFileSync('/tmp/debug_log.txt', msg + '\n');
+__log('MODULE_START');
 const express = require('express');
+__log('REQ_BETTER_SQLITE3_START');
 const Database = require('better-sqlite3');
+__log('REQ_BETTER_SQLITE3_OK');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+__log('REQ_MATCHER');
 const matcher = require('./matcher');
 const cvGenerator = require('./cv_generator');
+__log('REQ_MULTER');
 const multer = require('multer');
 // seed removido — desktop fica limpo; mobile chama /api/seed
 
@@ -13,12 +20,14 @@ const PORT = 3002;
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = 'job-analyzer';
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..');
+__log('DB_INIT_START');
 let dbDesktop, dbMobile;
 try {
   dbDesktop = new Database(path.join(DATA_DIR, 'career_agent.db'), { fileMustExist: false });
   dbMobile   = new Database(path.join(DATA_DIR, 'mobile.db'), { fileMustExist: false });
+  __log('DB_INIT_OK');
 } catch (e) {
-  console.error('Database init error:', e.message);
+  __log('DB_INIT_ERROR: ' + e.message);
 }
 const CV_PATH = path.join(__dirname, '..', 'sample_cv.json');
 
@@ -592,12 +601,16 @@ function migrate(db) {
     created_at TEXT
   )`);
 }
-try { migrate(dbDesktop); } catch (e) { console.error('migrate desktop:', e.message); }
-try { migrate(dbMobile); } catch (e) { console.error('migrate mobile:', e.message); }
+__log('MIGRATE_START');
+try { migrate(dbDesktop); __log('MIGRATE_DESKTOP_OK'); } catch (e) { __log('MIGRATE_DESKTOP_ERROR: ' + e.message); }
+try { migrate(dbMobile); __log('MIGRATE_MOBILE_OK'); } catch (e) { __log('MIGRATE_MOBILE_ERROR: ' + e.message); }
+__log('MIGRATE_DONE');
 
 // Auto-seed on cold start (Vercel)
+__log('AUTOSEED_START');
 if (dbMobile) {
   try {
+    __log('AUTOSEED_CHECKING_COUNT');
     const count = dbMobile.prepare('SELECT COUNT(*) as c FROM vagas').get();
     if (count.c === 0) {
       seedDatabase(dbMobile);
@@ -690,10 +703,11 @@ if (!process.env.VERCEL) {
   });
 }
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: err.message || 'Internal error' });
-});
-
+__log('MODULE_EXPORT_OK');
 module.exports = app;
+
+} catch(e) {
+  const fs = require('fs');
+  fs.appendFileSync('/tmp/debug_log.txt', 'FATAL: ' + e.message + '\n' + (e.stack || '') + '\n');
+  throw e;
+}
